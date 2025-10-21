@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>S.E.N.T.R.Y Dashboard</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100">
+    <div class="max-w-7xl mx-auto p-6">
+      <header class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-rose-500"></div>
+          <h1 class="text-2xl font-semibold tracking-tight">S.E.N.T.R.Y</h1>
+        </div>
+        <div id="fyersBadge" class="px-3 py-1 rounded-full text-sm bg-slate-800">Connecting...</div>
+      </header>
+
+      <section class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-slate-400 text-sm">Symbols Tracked</div>
+          <div id="metricSymbols" class="text-3xl mt-1 font-semibold">-</div>
+        </div>
+        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-slate-400 text-sm">Avg Discord Score</div>
+          <div id="metricAvgDiscord" class="text-3xl mt-1 font-semibold">-</div>
+        </div>
+        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-slate-400 text-sm">Max Discord Score</div>
+          <div id="metricMaxDiscord" class="text-3xl mt-1 font-semibold">-</div>
+        </div>
+        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-slate-400 text-sm">Mismatched Symbols</div>
+          <div id="metricMismatched" class="text-3xl mt-1 font-semibold">-</div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="col-span-1 lg:col-span-2 p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-medium">Top Signals</h2>
+            <button id="refreshBtn" class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-500 transition">Refresh</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="text-left py-2">Symbol</th>
+                  <th class="text-left py-2">Discord</th>
+                  <th class="text-left py-2">Confidence</th>
+                  <th class="text-left py-2">Sentiment</th>
+                  <th class="text-left py-2">Price</th>
+                  <th class="text-left py-2">Time</th>
+                </tr>
+              </thead>
+              <tbody id="signalsTable"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <h2 class="text-lg font-medium mb-3">Portfolio</h2>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-400">Value</span><span id="pfValue">-</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Positions</span><span id="pfPositions">-</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Updated</span><span id="pfUpdated">-</span></div>
+          </div>
+          <canvas id="discordChart" class="mt-6"></canvas>
+        </div>
+      </section>
+
+      <section class="mt-6 p-4 rounded-xl bg-slate-900 border border-slate-800">
+        <h2 class="text-lg font-medium mb-3">Market Overview</h2>
+        <div id="overviewGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+        <div id="emptyState" class="hidden text-slate-400 text-sm">No data available. If you intend to view live data, ensure FYERS access token is valid and markets are open.</div>
+      </section>
+
+      <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-medium">Live Process Log</h2>
+            <div class="flex gap-2">
+              <button id="runCycleBtn" class="px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 transition">Run Cycle</button>
+            </div>
+          </div>
+          <div id="eventLog" class="h-64 overflow-y-auto text-xs bg-slate-950/50 rounded-lg p-3 border border-slate-800"></div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <h2 class="text-lg font-medium mb-3">Event Stream</h2>
+          <pre id="eventStream" class="h-64 overflow-y-auto text-xs bg-slate-950/50 rounded-lg p-3 border border-slate-800"></pre>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const fmt = (n, d=2) => typeof n === 'number' ? n.toFixed(d) : '-';
+
+      async function fetchJson(path) {
+        const res = await fetch(path);
+        return res.json();
+      }
+
+      function renderSignals(signals) {
+        const el = document.getElementById('signalsTable');
+        if (!signals || !signals.length) {
+          el.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">No signals</td></tr>';
+          return;
+        }
+        const rows = signals
+          .sort((a,b) => (b.discord_score||0) - (a.discord_score||0))
+          .slice(0, 10)
+          .map(s => `<tr class="border-t border-slate-800">
+              <td class="py-2">${s.symbol}</td>
+              <td class="py-2">${fmt(s.discord_score)}</td>
+              <td class="py-2">${fmt(s.confidence)}</td>
+              <td class="py-2">${fmt(s.sentiment)}</td>
+              <td class="py-2">${fmt(s.current_price, 2)}</td>
+              <td class="py-2 text-slate-400 text-xs">${s.timestamp || ''}</td>
+            </tr>`).join('');
+        el.innerHTML = rows;
+      }
+
+      function renderOverview(overview) {
+        const grid = document.getElementById('overviewGrid');
+        const empty = document.getElementById('emptyState');
+        if (!overview || !overview.symbols || !Object.keys(overview.symbols).length) {
+          grid.innerHTML = '';
+          empty.classList.remove('hidden');
+          return;
+        }
+        empty.classList.add('hidden');
+        const cards = Object.entries(overview.symbols).map(([sym, data]) => {
+          const ds = data?.mismatch_analysis?.discord_score ?? 0;
+          const color = ds > 0.3 ? 'from-rose-500 to-orange-500' : ds < -0.3 ? 'from-sky-500 to-teal-500' : 'from-slate-600 to-slate-700';
+          return `<div class="p-3 rounded-lg bg-slate-800 border border-slate-700">
+            <div class="flex items-center justify-between mb-1">
+              <div class="font-semibold">${sym}</div>
+              <div class="text-xs text-slate-400">${data?.timestamp || ''}</div>
+            </div>
+            <div class="h-2 rounded bg-slate-700 overflow-hidden">
+              <div class="h-2 bg-gradient-to-r ${color}" style="width:${Math.min(Math.abs(ds)*100,100)}%"></div>
+            </div>
+            <div class="mt-2 text-sm flex justify-between"><span class="text-slate-400">Discord</span><span>${fmt(ds)}</span></div>
+          </div>`;
+        }).join('');
+        grid.innerHTML = cards;
+      }
+
+      let chart;
+      function renderChart(data) {
+        const ctx = document.getElementById('discordChart');
+        const labels = (data?.signals || []).map(s => s.symbol);
+        const values = (data?.signals || []).map(s => s.discord_score || 0);
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Discord', data: values, backgroundColor: '#6366F1' }] },
+          options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+      }
+
+      async function refreshAll() {
+        try {
+          const [overview, signals, portfolio] = await Promise.all([
+            fetchJson('/api/overview'), fetchJson('/api/signals'), fetchJson('/api/portfolio')
+          ]);
+          document.getElementById('fyersBadge').textContent = overview.fyers_connected ? 'FYERS Connected' : 'FYERS Not Connected';
+          document.getElementById('metricSymbols').textContent = overview?.market_summary?.total_symbols ?? '-';
+          document.getElementById('metricAvgDiscord').textContent = fmt(overview?.market_summary?.avg_discord_score ?? 0);
+          document.getElementById('metricMaxDiscord').textContent = fmt(overview?.market_summary?.max_discord_score ?? 0);
+          document.getElementById('metricMismatched').textContent = overview?.market_summary?.mismatched_symbols ?? '-';
+
+          renderSignals(signals?.signals || []);
+          renderOverview(overview || {});
+          renderChart({ signals: signals?.signals || [] });
+
+          document.getElementById('pfValue').textContent = portfolio?.portfolio_value ? `₹${Number(portfolio.portfolio_value).toLocaleString('en-IN')}` : '-';
+          document.getElementById('pfPositions').textContent = Object.keys(portfolio?.positions || {}).length;
+          document.getElementById('pfUpdated').textContent = portfolio?.timestamp || '-';
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+      document.getElementById('runCycleBtn').addEventListener('click', async () => {
+        try {
+          await fetch('/api/run-cycle', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        } catch (e) { console.error(e); }
+      });
+      refreshAll();
+      setInterval(refreshAll, 30000); // 30s polling
+
+      // SSE live events
+      try {
+        const es = new EventSource('/events');
+        const stream = document.getElementById('eventStream');
+        const log = document.getElementById('eventLog');
+        es.onmessage = (evt) => {
+          const data = JSON.parse(evt.data);
+          stream.textContent += JSON.stringify(data) + '\n';
+          stream.scrollTop = stream.scrollHeight;
+          const line = document.createElement('div');
+          line.className = 'py-0.5';
+          const t = new Date().toLocaleTimeString();
+          line.textContent = `[${t}] ${data.type}${data.symbol ? ' ' + data.symbol : ''}`;
+          log.appendChild(line);
+          log.scrollTop = log.scrollHeight;
+        };
+      } catch (e) { console.error(e); }
+    </script>
+  </body>
+</html>
+
+

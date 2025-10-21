@@ -321,3 +321,7 @@ class SentimentAnalyzer:
                 'acceleration': 0.0
             }
 
+
+
+# extract_key_phrases(self, text: str) -> List[str] --> needs to be better
+# calculate_sentiment_momentum(self, news_timeline: List[Dict]) -> Dict --> where do we use this ?

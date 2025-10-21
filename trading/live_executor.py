@@ -13,6 +13,7 @@ from news.news_scraper import NewsScraper
 from nlp.sentiment_analyzer import SentimentAnalyzer
 from analysis.cross_modal_analyzer import CrossModalAnalyzer
 from scoring.capital_allocator import CapitalAllocator
+from utils.event_bus import event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class LiveExecutor:
             self.is_running = True
             
             logger.info(f"Starting live trading for {len(watchlist)} symbols: {watchlist}")
+            await event_bus.publish({"type": "status", "stage": "start", "watchlist": watchlist})
             
             # Start main trading loop
             await self._trading_loop()
@@ -85,6 +87,7 @@ class LiveExecutor:
                 # Check if market is open
                 if not self._is_market_open():
                     logger.info("Market is closed, waiting...")
+                    await event_bus.publish({"type": "status", "stage": "market_closed"})
                     await asyncio.sleep(60)  # Wait 1 minute
                     continue
                 
@@ -102,9 +105,11 @@ class LiveExecutor:
         """Process one trading cycle"""
         try:
             logger.info("Processing trading cycle...")
+            await event_bus.publish({"type": "cycle", "stage": "begin", "timestamp": datetime.now().isoformat()})
             
             # 1. Detect significant price moves
             significant_moves = await self.fyers_client.detect_significant_moves(self.watchlist)
+            await event_bus.publish({"type": "moves", "data": significant_moves})
             
             if not significant_moves:
                 logger.info("No significant moves detected")
@@ -115,6 +120,7 @@ class LiveExecutor:
             # 2. Get news for moving symbols
             moving_symbols = [symbol for symbol, _ in significant_moves]
             news_data = await self.news_scraper.get_recent_news(moving_symbols, hours_back=1)
+            await event_bus.publish({"type": "news", "symbols": moving_symbols, "counts": {s: len(news_data.get(s, [])) for s in moving_symbols}})
             
             # 3. Analyze each symbol
             candidate_symbols = []
@@ -129,6 +135,7 @@ class LiveExecutor:
                     symbol_news = news_data.get(symbol, [])
                     analyzed_news = self.sentiment_analyzer.analyze_news_batch(symbol_news)
                     sentiment_summary = self.sentiment_analyzer.calculate_news_sentiment_summary(analyzed_news)
+                    await event_bus.publish({"type": "sentiment", "symbol": symbol, "summary": sentiment_summary})
                     
                     # Calculate cross-modal analysis
                     news_embeddings = np.array([item['embedding'] for item in analyzed_news])
@@ -144,6 +151,7 @@ class LiveExecutor:
                         microstructure.get('volume', 0),
                         microstructure.get('volatility', 0)
                     )
+                    await event_bus.publish({"type": "mismatch", "symbol": symbol, "analysis": mismatch_analysis})
                     
                     if mismatch_analysis['is_mismatched']:
                         candidate_symbols.append({
@@ -167,6 +175,7 @@ class LiveExecutor:
             
             # 4. Optimize portfolio allocation
             allocations = self.capital_allocator.optimize_portfolio_allocation(candidate_symbols)
+            await event_bus.publish({"type": "allocations", "data": allocations})
             
             if not allocations:
                 logger.info("No valid allocations found")
@@ -174,6 +183,7 @@ class LiveExecutor:
             
             # 5. Generate and execute trading signals
             signals = self.capital_allocator.generate_trading_signals(allocations)
+            await event_bus.publish({"type": "signals", "data": signals})
             
             if signals:
                 await self._execute_signals(signals)
@@ -183,6 +193,7 @@ class LiveExecutor:
             
         except Exception as e:
             logger.error(f"Error processing trading cycle: {e}")
+            await event_bus.publish({"type": "error", "message": str(e)})
     
     async def _execute_signals(self, signals: List[Dict]):
         """Execute trading signals"""

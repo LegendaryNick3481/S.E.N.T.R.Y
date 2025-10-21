@@ -181,8 +181,12 @@ class MismatchedEnergySystem:
     async def get_market_overview(self) -> Dict:
         """Get market overview with all symbols"""
         try:
-            # Get all symbols from watchlist or default list
-            symbols = ['RELIANCE', 'TCS', 'INFY', 'HDFC', 'ICICIBANK', 'SBIN']
+            # Load symbols from tickers
+            try:
+                from data.tickers import get_tickers
+                symbols = get_tickers()
+            except Exception as e:
+                symbols = ['HINDZINC', 'MANKIND', 'INDUSTOWER', 'DEEPINDS', 'FMGOETZE']
             
             overview = {
                 'timestamp': datetime.now(),
@@ -240,16 +244,29 @@ async def main():
     parser = argparse.ArgumentParser(description='Mismatched Energy Trading System')
     parser.add_argument('--mode', choices=['backtest', 'live', 'analyze'], 
                        default='backtest', help='Operation mode')
-    parser.add_argument('--symbols', nargs='+', default=['RELIANCE', 'TCS', 'INFY'],
-                       help='Symbols to analyze/trade')
+    parser.add_argument('--symbols', nargs='+', default=None,
+                       help='Symbols to analyze/trade (if not provided, loads from data/tickers.py)')
     parser.add_argument('--start-date', default='2023-01-01', 
                        help='Start date for backtest (YYYY-MM-DD)')
     parser.add_argument('--end-date', default='2024-01-01',
                        help='End date for backtest (YYYY-MM-DD)')
-    parser.add_argument('--watchlist', nargs='+', default=['RELIANCE', 'TCS', 'INFY'],
-                       help='Watchlist for live trading')
+    parser.add_argument('--watchlist', nargs='+', default=None,
+                       help='Watchlist for live trading (if not provided, loads from data/tickers.py)')
     
     args = parser.parse_args()
+    
+    # Load symbols from tickers if not provided
+    if args.symbols is None:
+        try:
+            from data.tickers import get_tickers
+            args.symbols = get_tickers()
+            logger.info(f"Loaded {len(args.symbols)} symbols: {args.symbols}")
+        except Exception as e:
+            logger.error(f"Could not load symbols from tickers: {e}")
+            args.symbols = ['HINDZINC', 'MANKIND', 'INDUSTOWER', 'DEEPINDS', 'FMGOETZE']
+    
+    if args.watchlist is None:
+        args.watchlist = args.symbols
     
     # Create system instance
     system = MismatchedEnergySystem()

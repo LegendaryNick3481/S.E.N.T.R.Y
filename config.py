@@ -20,7 +20,9 @@ class Config:
             'https://www.moneycontrol.com/rss/marketnews.xml',
             'https://economictimes.indiatimes.com/markets/rssfeeds/1977029391.cms',
             'https://www.bseindia.com/rss/feeds/ann.xml',
-            'https://www.nseindia.com/rss/feeds/ann.xml'
+            'https://www.nseindia.com/rss/feeds/ann.xml',
+            'https://feeds.finance.yahoo.com/rss/2.0/headline',
+            'https://www.investing.com/rss/news.rss'
         ],
         'twitter_handles': [
             '@NSEIndia',
@@ -28,7 +30,18 @@ class Config:
             '@MoneyControlCom',
             '@EconomicTimes',
             '@livemint'
-        ]
+        ],
+        'reddit': [
+            'IndianStockMarket',      # Retail traders, daily sentiment, live market memes
+            'IndiaInvestments',       # Long-term investing, mutual funds, company deep-dives
+            'NSEIndia',              # Stock-specific discussions, result reactions
+            'IndianStreetBets',      # Meme-style trades, speculative buzz
+            'IndiaFinance'           # RBI, policy, macroeconomic sentiment
+        ],
+        'google_news': {
+            'base_url': 'https://news.google.com/rss/search',
+            'query_params': 'q={symbol}+stock+news&hl=en&gl=IN&ceid=IN:en'
+        }
     }
     
     # Market Configuration

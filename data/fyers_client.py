@@ -83,8 +83,12 @@ class FyersClient:
             if not self.fyers:
                 await self.initialize()
             
+            # Convert symbols to Fyers format
+            from data.tickers import get_fyers_symbol
+            fyers_symbols = [get_fyers_symbol(symbol) for symbol in symbols]
+            
             data = {
-                "symbols": ",".join(symbols)
+                "symbols": ",".join(fyers_symbols)
             }
             
             response = self.fyers.quotes(data)
@@ -202,8 +206,12 @@ class FyersClient:
             if not self.fyers:
                 await self.initialize()
             
+            # Convert symbol to Fyers format
+            from data.tickers import get_fyers_symbol
+            fyers_symbol = get_fyers_symbol(symbol)
+            
             order_data = {
-                "symbol": symbol,
+                "symbol": fyers_symbol,
                 "qty": quantity,
                 "type": 1 if side == "BUY" else -1,
                 "side": 1 if side == "BUY" else -1,
