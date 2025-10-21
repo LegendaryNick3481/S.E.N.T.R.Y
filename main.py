@@ -21,24 +21,6 @@ from trading.live_executor import LiveExecutor
 from backtesting.backtest_engine import BacktestEngine
 from config import Config
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, Config.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(Config.LOG_FILE),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-# Suppress noisy external library logs
-logging.getLogger('snscrape').setLevel(logging.ERROR)
-logging.getLogger('sentence_transformers').setLevel(logging.ERROR)
-logging.getLogger('torch').setLevel(logging.ERROR)
-logging.getLogger('transformers').setLevel(logging.ERROR)
-logging.getLogger('urllib3').setLevel(logging.ERROR)
-logging.getLogger('requests').setLevel(logging.ERROR)
-
 logger = logging.getLogger(__name__)
 
 class MismatchedEnergySystem:
@@ -48,7 +30,7 @@ class MismatchedEnergySystem:
         self.sentiment_analyzer = SentimentAnalyzer()
         self.cross_modal_analyzer = CrossModalAnalyzer()
         self.capital_allocator = CapitalAllocator()
-        self.live_executor = LiveExecutor()
+        self.live_executor = LiveExecutor(self.fyers_client, self.news_scraper, self.sentiment_analyzer)
         self.backtest_engine = BacktestEngine()
         
         self.is_running = False
@@ -69,10 +51,6 @@ class MismatchedEnergySystem:
             # Initialize sentiment analyzer
             if not await self.sentiment_analyzer.initialize():
                 raise Exception("Failed to initialize sentiment analyzer")
-            
-            # Initialize live executor
-            if not await self.live_executor.initialize():
-                raise Exception("Failed to initialize live executor")
             
             logger.info("All components initialized successfully")
             return True

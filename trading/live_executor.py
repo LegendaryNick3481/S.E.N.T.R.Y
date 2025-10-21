@@ -21,10 +21,10 @@ from utils.event_bus import event_bus
 logger = logging.getLogger(__name__)
 
 class LiveExecutor:
-    def __init__(self):
-        self.fyers_client = FyersClient()
-        self.news_scraper = NewsScraper()
-        self.sentiment_analyzer = SentimentAnalyzer()
+    def __init__(self, fyers_client: FyersClient, news_scraper: NewsScraper, sentiment_analyzer: SentimentAnalyzer):
+        self.fyers_client = fyers_client
+        self.news_scraper = news_scraper
+        self.sentiment_analyzer = sentiment_analyzer
         self.cross_modal_analyzer = CrossModalAnalyzer()
         self.capital_allocator = CapitalAllocator()
         
@@ -33,27 +33,6 @@ class LiveExecutor:
         self.positions = {}
         self.orders = {}
         self.performance_metrics = {}
-        
-    async def initialize(self):
-        """Initialize all components"""
-        try:
-            # Initialize Fyers client
-            if not await self.fyers_client.initialize():
-                raise Exception("Failed to initialize Fyers client")
-            
-            # Initialize news scraper
-            await self.news_scraper.initialize()
-            
-            # Initialize sentiment analyzer
-            if not await self.sentiment_analyzer.initialize():
-                raise Exception("Failed to initialize sentiment analyzer")
-            
-            logger.info("Live executor initialized successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error initializing live executor: {e}")
-            return False
     
     async def start_trading(self, watchlist: List[str]):
         """Start live trading with given watchlist"""
