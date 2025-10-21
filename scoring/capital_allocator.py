@@ -6,6 +6,9 @@ import pandas as pd
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime, timedelta
 import logging
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 from scipy.optimize import minimize
 from sklearn.preprocessing import MinMaxScaler

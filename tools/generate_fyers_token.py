@@ -21,7 +21,9 @@ except Exception as e:
 
 
 def load_required_env() -> dict:
-    load_dotenv()
+    # Load .env from the project root directory
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    load_dotenv(env_path)
     app_id = os.getenv("FYERS_APP_ID")
     secret_key = os.getenv("FYERS_SECRET_KEY")
     redirect_uri = os.getenv("FYERS_REDIRECT_URI", "https://trade.fyers.in/api-login/redirect-uri")
@@ -42,7 +44,10 @@ def load_required_env() -> dict:
     }
 
 
-def write_access_token_to_env(access_token: str, env_path: str = ".env") -> None:
+def write_access_token_to_env(access_token: str, env_path: str = None) -> None:
+    if env_path is None:
+        # Use the same .env path as load_required_env
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
     # Update FYERS_ACCESS_TOKEN in .env (append if not present)
     lines = []
     if os.path.exists(env_path):

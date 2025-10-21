@@ -31,6 +31,14 @@ logging.basicConfig(
     ]
 )
 
+# Suppress noisy external library logs
+logging.getLogger('snscrape').setLevel(logging.ERROR)
+logging.getLogger('sentence_transformers').setLevel(logging.ERROR)
+logging.getLogger('torch').setLevel(logging.ERROR)
+logging.getLogger('transformers').setLevel(logging.ERROR)
+logging.getLogger('urllib3').setLevel(logging.ERROR)
+logging.getLogger('requests').setLevel(logging.ERROR)
+
 logger = logging.getLogger(__name__)
 
 class MismatchedEnergySystem:

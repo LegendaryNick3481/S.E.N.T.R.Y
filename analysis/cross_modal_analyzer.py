@@ -10,6 +10,9 @@ from sklearn.preprocessing import StandardScaler
 from scipy.stats import pearsonr, spearmanr
 from datetime import datetime, timedelta
 import logging
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 
 logger = logging.getLogger(__name__)

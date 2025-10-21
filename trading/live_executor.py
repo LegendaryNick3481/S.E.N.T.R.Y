@@ -7,6 +7,9 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import logging
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 from data.fyers_client import FyersClient
 from news.news_scraper import NewsScraper

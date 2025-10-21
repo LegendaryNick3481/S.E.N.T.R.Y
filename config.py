@@ -81,6 +81,6 @@ class Config:
     INITIAL_CAPITAL = 100000  # ₹1,00,000
     
     # Logging
-    LOG_LEVEL = 'INFO'
+    LOG_LEVEL = 'WARNING'  # Suppress INFO and DEBUG messages
     LOG_FILE = 'mismatched_energy.log'
 

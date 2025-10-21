@@ -241,7 +241,16 @@ class FyersClient:
             
             response = self.fyers.positions()
             if response['code'] == 200:
-                return response['overall']['netPositions']
+                # Handle different response structures
+                if 'overall' in response and 'netPositions' in response['overall']:
+                    return response['overall']['netPositions']
+                elif 'netPositions' in response:
+                    return response['netPositions']
+                elif 'data' in response:
+                    return response['data']
+                else:
+                    logger.warning(f"Unexpected positions response structure: {response}")
+                    return []
             return []
             
         except Exception as e:

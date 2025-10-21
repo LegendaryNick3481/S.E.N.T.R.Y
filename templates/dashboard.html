@@ -1,219 +1,635 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>S.E.N.T.R.Y Dashboard</title>
-    <!-- Tailwind CSS via CDN -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.E.N.T.R.Y - Trading Dashboard</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-  <body class="bg-slate-950 text-slate-100">
-    <div class="max-w-7xl mx-auto p-6">
-      <header class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-rose-500"></div>
-          <h1 class="text-2xl font-semibold tracking-tight">S.E.N.T.R.Y</h1>
-        </div>
-        <div id="fyersBadge" class="px-3 py-1 rounded-full text-sm bg-slate-800">Connecting...</div>
-      </header>
-
-      <section class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div class="text-slate-400 text-sm">Symbols Tracked</div>
-          <div id="metricSymbols" class="text-3xl mt-1 font-semibold">-</div>
-        </div>
-        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div class="text-slate-400 text-sm">Avg Discord Score</div>
-          <div id="metricAvgDiscord" class="text-3xl mt-1 font-semibold">-</div>
-        </div>
-        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div class="text-slate-400 text-sm">Max Discord Score</div>
-          <div id="metricMaxDiscord" class="text-3xl mt-1 font-semibold">-</div>
-        </div>
-        <div class="col-span-1 lg:col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div class="text-slate-400 text-sm">Mismatched Symbols</div>
-          <div id="metricMismatched" class="text-3xl mt-1 font-semibold">-</div>
-        </div>
-      </section>
-
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="col-span-1 lg:col-span-2 p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-medium">Top Signals</h2>
-            <button id="refreshBtn" class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-500 transition">Refresh</button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="text-slate-400">
-                <tr>
-                  <th class="text-left py-2">Symbol</th>
-                  <th class="text-left py-2">Discord</th>
-                  <th class="text-left py-2">Confidence</th>
-                  <th class="text-left py-2">Sentiment</th>
-                  <th class="text-left py-2">Price</th>
-                  <th class="text-left py-2">Time</th>
-                </tr>
-              </thead>
-              <tbody id="signalsTable"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="col-span-1 p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <h2 class="text-lg font-medium mb-3">Portfolio</h2>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-slate-400">Value</span><span id="pfValue">-</span></div>
-            <div class="flex justify-between"><span class="text-slate-400">Positions</span><span id="pfPositions">-</span></div>
-            <div class="flex justify-between"><span class="text-slate-400">Updated</span><span id="pfUpdated">-</span></div>
-          </div>
-          <canvas id="discordChart" class="mt-6"></canvas>
-        </div>
-      </section>
-
-      <section class="mt-6 p-4 rounded-xl bg-slate-900 border border-slate-800">
-        <h2 class="text-lg font-medium mb-3">Market Overview</h2>
-        <div id="overviewGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"></div>
-        <div id="emptyState" class="hidden text-slate-400 text-sm">No data available. If you intend to view live data, ensure FYERS access token is valid and markets are open.</div>
-      </section>
-
-      <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-medium">Live Process Log</h2>
-            <div class="flex gap-2">
-              <button id="runCycleBtn" class="px-3 py-1.5 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 transition">Run Cycle</button>
+    
+    <!-- Custom Styles -->
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+        
+        .positive {
+            color: #10b981;
+        }
+        
+        .negative {
+            color: #ef4444;
+        }
+        
+        .neutral {
+            color: #6b7280;
+        }
+        
+        .sidebar {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-item {
+            transition: all 0.2s ease;
+            border-radius: 8px;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        
+        .status-disconnected {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+        
+        .signal-high {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+        }
+        
+        .signal-medium {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid #f59e0b;
+        }
+        
+        .signal-low {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid #10b981;
+        }
+        
+        .loading-spinner {
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="sidebar w-64 p-6 flex flex-col">
+            <!-- Logo -->
+            <div class="flex items-center mb-8">
+                <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                    <span class="text-white font-bold text-sm">S</span>
+                </div>
+                <span class="text-xl font-bold">S.E.N.T.R.Y</span>
             </div>
-          </div>
-          <div id="eventLog" class="h-64 overflow-y-auto text-xs bg-slate-950/50 rounded-lg p-3 border border-slate-800"></div>
+            
+            <!-- Navigation -->
+            <nav class="flex-1">
+                <div class="nav-item active p-3 mb-2 cursor-pointer">
+                    <div class="flex items-center">
+                        <span class="mr-3">📊</span>
+                        <span>Dashboard</span>
+                    </div>
+                </div>
+                <div class="nav-item p-3 mb-2 cursor-pointer">
+                    <div class="flex items-center">
+                        <span class="mr-3">💹</span>
+                        <span>Trading</span>
+                    </div>
+                </div>
+                <div class="nav-item p-3 mb-2 cursor-pointer">
+                    <div class="flex items-center">
+                        <span class="mr-3">📈</span>
+                        <span>Analytics</span>
+                    </div>
+                </div>
+                <div class="nav-item p-3 mb-2 cursor-pointer">
+                    <div class="flex items-center">
+                        <span class="mr-3">⚙️</span>
+                        <span>Settings</span>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- System Status -->
+            <div class="mt-auto">
+                <div class="glass-card p-4">
+                    <div class="text-sm text-gray-400 mb-2">System Status</div>
+                    <div class="flex items-center mb-2">
+                        <span class="status-indicator status-disconnected"></span>
+                        <span class="text-sm">FYERS API</span>
+                    </div>
+                    <div class="flex items-center mb-2">
+                        <span class="status-indicator status-connected"></span>
+                        <span class="text-sm">News Feed</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="status-indicator status-connected"></span>
+                        <span class="text-sm">Analysis Engine</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-          <h2 class="text-lg font-medium mb-3">Event Stream</h2>
-          <pre id="eventStream" class="h-64 overflow-y-auto text-xs bg-slate-950/50 rounded-lg p-3 border border-slate-800"></pre>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="p-6 border-b border-gray-800">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold">Trading Dashboard</h1>
+                        <p class="text-gray-400 text-sm">Real-time market analysis and trading signals</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="refreshBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
+                            <span class="mr-2">🔄</span>
+                            Refresh
+                        </button>
+                        <button id="runCycleBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors">
+                            <span class="mr-2">▶️</span>
+                            Run Cycle
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Content -->
+            <div class="flex-1 p-6 overflow-y-auto scrollbar-hide">
+                <!-- Key Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="glass-card metric-card p-6 fade-in">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Portfolio Value</span>
+                            <div class="loading-spinner" id="portfolioSpinner"></div>
+                        </div>
+                        <div id="portfolioValue" class="text-2xl font-bold">-</div>
+                        <div id="portfolioChange" class="text-sm mt-1">-</div>
+                    </div>
+                    
+                    <div class="glass-card metric-card p-6 fade-in">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Active Positions</span>
+                            <div class="loading-spinner" id="positionsSpinner"></div>
+                        </div>
+                        <div id="activePositions" class="text-2xl font-bold">-</div>
+                        <div id="positionsPnl" class="text-sm mt-1">-</div>
+                    </div>
+                    
+                    <div class="glass-card metric-card p-6 fade-in">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Discord Score</span>
+                            <div class="loading-spinner" id="discordSpinner"></div>
+                        </div>
+                        <div id="avgDiscordScore" class="text-2xl font-bold">-</div>
+                        <div id="discordTrend" class="text-sm mt-1">-</div>
+                    </div>
+                    
+                    <div class="glass-card metric-card p-6 fade-in">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Win Rate</span>
+                            <div class="loading-spinner" id="winrateSpinner"></div>
+                        </div>
+                        <div id="winRate" class="text-2xl font-bold">-</div>
+                        <div id="totalTrades" class="text-sm mt-1">-</div>
+                    </div>
+                </div>
+                
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Trading Signals -->
+                    <div class="lg:col-span-2">
+                        <div class="glass-card p-6 fade-in">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-xl font-bold">Trading Signals</h2>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-gray-400">Live</span>
+                                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
+                                <div id="signalsList">
+                                    <div class="text-center py-8 text-gray-400">
+                                        <div class="loading-spinner mx-auto mb-2"></div>
+                                        Loading signals...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Portfolio & Performance -->
+                    <div class="space-y-6">
+                        <!-- Portfolio Summary -->
+                        <div class="glass-card p-6 fade-in">
+                            <h3 class="text-lg font-bold mb-4">Portfolio Summary</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Total Value</span>
+                                    <span id="totalValue">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Available Cash</span>
+                                    <span id="availableCash">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Exposure</span>
+                                    <span id="exposure">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Last Updated</span>
+                                    <span id="lastUpdated">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Performance Chart -->
+                        <div class="glass-card p-6 fade-in">
+                            <h3 class="text-lg font-bold mb-4">Performance</h3>
+                            <canvas id="performanceChart" class="w-full h-48"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- News & Analysis -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                    <!-- News Feed -->
+                    <div class="glass-card p-6 fade-in">
+                        <h3 class="text-lg font-bold mb-4">Latest News</h3>
+                        <div class="space-y-4 max-h-96 overflow-y-auto scrollbar-hide">
+                            <div id="newsList">
+                                <div class="text-center py-8 text-gray-400">
+                                    <div class="loading-spinner mx-auto mb-2"></div>
+                                    Loading news...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Market Overview -->
+                    <div class="glass-card p-6 fade-in">
+                        <h3 class="text-lg font-bold mb-4">Market Overview</h3>
+                        <div class="space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
+                            <div id="marketOverview">
+                                <div class="text-center py-8 text-gray-400">
+                                    <div class="loading-spinner mx-auto mb-2"></div>
+                                    Loading market data...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </section>
     </div>
 
     <script>
-      const fmt = (n, d=2) => typeof n === 'number' ? n.toFixed(d) : '-';
-
-      async function fetchJson(path) {
-        const res = await fetch(path);
-        return res.json();
-      }
-
-      function renderSignals(signals) {
-        const el = document.getElementById('signalsTable');
-        if (!signals || !signals.length) {
-          el.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">No signals</td></tr>';
-          return;
-        }
-        const rows = signals
-          .sort((a,b) => (b.discord_score||0) - (a.discord_score||0))
-          .slice(0, 10)
-          .map(s => `<tr class="border-t border-slate-800">
-              <td class="py-2">${s.symbol}</td>
-              <td class="py-2">${fmt(s.discord_score)}</td>
-              <td class="py-2">${fmt(s.confidence)}</td>
-              <td class="py-2">${fmt(s.sentiment)}</td>
-              <td class="py-2">${fmt(s.current_price, 2)}</td>
-              <td class="py-2 text-slate-400 text-xs">${s.timestamp || ''}</td>
-            </tr>`).join('');
-        el.innerHTML = rows;
-      }
-
-      function renderOverview(overview) {
-        const grid = document.getElementById('overviewGrid');
-        const empty = document.getElementById('emptyState');
-        if (!overview || !overview.symbols || !Object.keys(overview.symbols).length) {
-          grid.innerHTML = '';
-          empty.classList.remove('hidden');
-          return;
-        }
-        empty.classList.add('hidden');
-        const cards = Object.entries(overview.symbols).map(([sym, data]) => {
-          const ds = data?.mismatch_analysis?.discord_score ?? 0;
-          const color = ds > 0.3 ? 'from-rose-500 to-orange-500' : ds < -0.3 ? 'from-sky-500 to-teal-500' : 'from-slate-600 to-slate-700';
-          return `<div class="p-3 rounded-lg bg-slate-800 border border-slate-700">
-            <div class="flex items-center justify-between mb-1">
-              <div class="font-semibold">${sym}</div>
-              <div class="text-xs text-slate-400">${data?.timestamp || ''}</div>
-            </div>
-            <div class="h-2 rounded bg-slate-700 overflow-hidden">
-              <div class="h-2 bg-gradient-to-r ${color}" style="width:${Math.min(Math.abs(ds)*100,100)}%"></div>
-            </div>
-            <div class="mt-2 text-sm flex justify-between"><span class="text-slate-400">Discord</span><span>${fmt(ds)}</span></div>
-          </div>`;
-        }).join('');
-        grid.innerHTML = cards;
-      }
-
-      let chart;
-      function renderChart(data) {
-        const ctx = document.getElementById('discordChart');
-        const labels = (data?.signals || []).map(s => s.symbol);
-        const values = (data?.signals || []).map(s => s.discord_score || 0);
-        if (chart) chart.destroy();
-        chart = new Chart(ctx, {
-          type: 'bar',
-          data: { labels, datasets: [{ label: 'Discord', data: values, backgroundColor: '#6366F1' }] },
-          options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
-      }
-
-      async function refreshAll() {
-        try {
-          const [overview, signals, portfolio] = await Promise.all([
-            fetchJson('/api/overview'), fetchJson('/api/signals'), fetchJson('/api/portfolio')
-          ]);
-          document.getElementById('fyersBadge').textContent = overview.fyers_connected ? 'FYERS Connected' : 'FYERS Not Connected';
-          document.getElementById('metricSymbols').textContent = overview?.market_summary?.total_symbols ?? '-';
-          document.getElementById('metricAvgDiscord').textContent = fmt(overview?.market_summary?.avg_discord_score ?? 0);
-          document.getElementById('metricMaxDiscord').textContent = fmt(overview?.market_summary?.max_discord_score ?? 0);
-          document.getElementById('metricMismatched').textContent = overview?.market_summary?.mismatched_symbols ?? '-';
-
-          renderSignals(signals?.signals || []);
-          renderOverview(overview || {});
-          renderChart({ signals: signals?.signals || [] });
-
-          document.getElementById('pfValue').textContent = portfolio?.portfolio_value ? `₹${Number(portfolio.portfolio_value).toLocaleString('en-IN')}` : '-';
-          document.getElementById('pfPositions').textContent = Object.keys(portfolio?.positions || {}).length;
-          document.getElementById('pfUpdated').textContent = portfolio?.timestamp || '-';
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
-      document.getElementById('refreshBtn').addEventListener('click', refreshAll);
-      document.getElementById('runCycleBtn').addEventListener('click', async () => {
-        try {
-          await fetch('/api/run-cycle', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-        } catch (e) { console.error(e); }
-      });
-      refreshAll();
-      setInterval(refreshAll, 30000); // 30s polling
-
-      // SSE live events
-      try {
-        const es = new EventSource('/events');
-        const stream = document.getElementById('eventStream');
-        const log = document.getElementById('eventLog');
-        es.onmessage = (evt) => {
-          const data = JSON.parse(evt.data);
-          stream.textContent += JSON.stringify(data) + '\n';
-          stream.scrollTop = stream.scrollHeight;
-          const line = document.createElement('div');
-          line.className = 'py-0.5';
-          const t = new Date().toLocaleTimeString();
-          line.textContent = `[${t}] ${data.type}${data.symbol ? ' ' + data.symbol : ''}`;
-          log.appendChild(line);
-          log.scrollTop = log.scrollHeight;
+        // Utility functions
+        const formatCurrency = (amount) => {
+            if (typeof amount !== 'number') return '-';
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
         };
-      } catch (e) { console.error(e); }
+
+        const formatPercent = (value) => {
+            if (typeof value !== 'number') return '-';
+            return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+        };
+
+        const getSignalClass = (discordScore) => {
+            if (discordScore > 0.3) return 'signal-high';
+            if (discordScore > 0.1) return 'signal-medium';
+            return 'signal-low';
+        };
+
+        const getSentimentClass = (sentiment) => {
+            if (sentiment > 0.1) return 'positive';
+            if (sentiment < -0.1) return 'negative';
+            return 'neutral';
+        };
+
+        // API functions
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(endpoint);
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                return null;
+            }
+        }
+
+        // Render functions
+        function renderSignals(signals) {
+            const container = document.getElementById('signalsList');
+            if (!signals || signals.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">No signals available</div>';
+                return;
+            }
+
+            const signalsHtml = signals.slice(0, 10).map(signal => `
+                <div class="glass-card p-4 ${getSignalClass(signal.discord_score)} fade-in">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="font-bold text-lg">${signal.symbol}</div>
+                        <div class="text-sm text-gray-400">${signal.timestamp || ''}</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <div class="text-gray-400">Discord</div>
+                            <div class="font-medium">${(signal.discord_score || 0).toFixed(3)}</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400">Confidence</div>
+                            <div class="font-medium">${(signal.confidence || 0).toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400">Price</div>
+                            <div class="font-medium">${formatCurrency(signal.current_price)}</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm">
+                        <span class="text-gray-400">Sentiment:</span>
+                        <span class="${getSentimentClass(signal.sentiment)}">${formatPercent((signal.sentiment || 0) * 100)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = signalsHtml;
+        }
+
+        function renderNews(newsData) {
+            const container = document.getElementById('newsList');
+            if (!newsData || Object.keys(newsData).length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">No news available</div>';
+                return;
+            }
+
+            let newsHtml = '';
+            Object.entries(newsData).forEach(([symbol, news]) => {
+                if (news && news.length > 0) {
+                    news.forEach(article => {
+                        newsHtml += `
+                            <div class="glass-card p-4 fade-in">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="font-medium text-blue-400">${symbol}</div>
+                                    <div class="text-xs text-gray-400">${article.timestamp || ''}</div>
+                                </div>
+                                <div class="text-sm mb-2">${article.headline || article.title || 'News update'}</div>
+                                <div class="flex items-center justify-between">
+                                    <div class="text-xs text-gray-400">${article.source || 'Unknown'}</div>
+                                    <div class="text-xs ${getSentimentClass(article.sentiment)}">
+                                        ${formatPercent((article.sentiment || 0) * 100)}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+
+            if (!newsHtml) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">No news available</div>';
+            } else {
+                container.innerHTML = newsHtml;
+            }
+        }
+
+        function renderMarketOverview(overview) {
+            const container = document.getElementById('marketOverview');
+            if (!overview || !overview.symbols || Object.keys(overview.symbols).length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">No market data available</div>';
+                return;
+            }
+
+            const overviewHtml = Object.entries(overview.symbols).slice(0, 10).map(([symbol, data]) => {
+                const discordScore = data?.mismatch_analysis?.discord_score || 0;
+                const sentiment = data?.sentiment_summary?.weighted_sentiment || 0;
+                
+                return `
+                    <div class="glass-card p-3 fade-in">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="font-medium">${symbol}</div>
+                            <div class="text-xs text-gray-400">${data?.timestamp || ''}</div>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <div>
+                                <span class="text-gray-400">Discord:</span>
+                                <span class="${getSignalClass(discordScore)}">${discordScore.toFixed(3)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Sentiment:</span>
+                                <span class="${getSentimentClass(sentiment)}">${formatPercent(sentiment * 100)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = overviewHtml;
+        }
+
+        function renderPortfolio(portfolio) {
+            if (!portfolio) return;
+
+            document.getElementById('totalValue').textContent = formatCurrency(portfolio.portfolio_value || 0);
+            document.getElementById('availableCash').textContent = formatCurrency(portfolio.available_cash || 0);
+            document.getElementById('exposure').textContent = formatPercent((portfolio.exposure || 0) * 100);
+            document.getElementById('lastUpdated').textContent = portfolio.timestamp || '-';
+            
+            document.getElementById('activePositions').textContent = Object.keys(portfolio.positions || {}).length;
+            
+            const totalPnl = Object.values(portfolio.positions || {}).reduce((sum, pos) => sum + (pos.pnl || 0), 0);
+            document.getElementById('positionsPnl').textContent = formatCurrency(totalPnl);
+        }
+
+        function renderMetrics(overview) {
+            if (!overview) return;
+
+            document.getElementById('portfolioValue').textContent = formatCurrency(overview.portfolio_value || 0);
+            document.getElementById('avgDiscordScore').textContent = (overview.market_summary?.avg_discord_score || 0).toFixed(3);
+            document.getElementById('winRate').textContent = formatPercent((overview.win_rate || 0) * 100);
+            document.getElementById('totalTrades').textContent = `${overview.total_trades || 0} trades`;
+        }
+
+        function hideSpinners() {
+            document.querySelectorAll('.loading-spinner').forEach(spinner => {
+                spinner.style.display = 'none';
+            });
+        }
+
+        // Chart initialization
+        let performanceChart;
+        function initChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Portfolio Value',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { 
+                                color: '#9ca3af',
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Main refresh function
+        async function refreshAll() {
+            try {
+                const [overview, signals, portfolio] = await Promise.all([
+                    fetchData('/api/overview'),
+                    fetchData('/api/signals'),
+                    fetchData('/api/portfolio')
+                ]);
+
+                renderSignals(signals?.signals || []);
+                renderNews(overview?.news_data || {});
+                renderMarketOverview(overview || {});
+                renderPortfolio(portfolio?.portfolio || {});
+                renderMetrics(overview || {});
+
+                hideSpinners();
+            } catch (error) {
+                console.error('Refresh error:', error);
+                hideSpinners();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+        
+        document.getElementById('runCycleBtn').addEventListener('click', async () => {
+            try {
+                const btn = document.getElementById('runCycleBtn');
+                btn.innerHTML = '<span class="mr-2">⏳</span>Running...';
+                btn.disabled = true;
+                
+                await fetch('/api/run-cycle', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
+                
+                setTimeout(() => {
+                    btn.innerHTML = '<span class="mr-2">▶️</span>Run Cycle';
+                    btn.disabled = false;
+                    refreshAll();
+                }, 2000);
+            } catch (error) {
+                console.error('Run cycle error:', error);
+                document.getElementById('runCycleBtn').innerHTML = '<span class="mr-2">▶️</span>Run Cycle';
+                document.getElementById('runCycleBtn').disabled = false;
+            }
+        });
+
+        // Initialize
+        initChart();
+        refreshAll();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(refreshAll, 30000);
     </script>
-  </body>
+</body>
 </html>
-
-
