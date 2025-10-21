@@ -1,11 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Wallet, 
-  TrendingUp, 
   Target, 
-  BarChart3,
   Activity,
   Brain
 } from 'lucide-react';
@@ -15,6 +13,25 @@ import { PortfolioSummary } from '../components/PortfolioSummary';
 import { PerformanceChart } from '../components/PerformanceChart';
 import { NewsFeed } from '../components/NewsFeed';
 import { MarketOverview } from '../components/MarketOverview';
+
+// Type definitions
+interface Position {
+  pnl: number;
+  // Add other position properties as needed
+}
+
+interface Portfolio {
+  positions: Record<string, Position>;
+  portfolio_value: number;
+}
+
+interface SignalsData {
+  signals: unknown[]; // Define a more specific type for signals if possible
+}
+
+interface PortfolioData {
+  portfolio: Portfolio;
+}
 
 // API functions
 const fetchOverview = async () => {
@@ -36,9 +53,49 @@ const fetchPortfolio = async () => {
 };
 
 export function Dashboard() {
-  const { data: overview, isLoading: overviewLoading } = useQuery({ queryKey: ['overview'], queryFn: fetchOverview });
-  const { data: signals, isLoading: signalsLoading } = useQuery({ queryKey: ['signals'], queryFn: fetchSignals });
-  const { data: portfolio, isLoading: portfolioLoading } = useQuery({ queryKey: ['portfolio'], queryFn: fetchPortfolio });
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const eventSource = new EventSource('/events');
+    
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      // Update query cache based on event type
+      if (data.type === 'trading_signal') {
+        queryClient.setQueryData<SignalsData>(['signals'], (oldData) => ({
+          signals: [data.payload, ...(oldData?.signals || [])]
+        }));
+      } else if (data.type === 'portfolio_update') {
+        queryClient.setQueryData<PortfolioData>(['portfolio'], (oldData) => ({
+          ...oldData,
+          portfolio: data.payload
+        }));
+      } else if (data.type === 'market_overview') {
+        queryClient.setQueryData(['overview'], (oldData: unknown) => ({
+          ...(oldData as object),
+          ...data.payload
+        }));
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [queryClient]);
+
+  const useQueryOptions = {
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  };
+
+  const { data: overview, isLoading: overviewLoading } = useQuery({ queryKey: ['overview'], queryFn: fetchOverview, ...useQueryOptions });
+  const { data: signals, isLoading: signalsLoading } = useQuery({ queryKey: ['signals'], queryFn: fetchSignals, ...useQueryOptions });
+  const { data: portfolio, isLoading: portfolioLoading } = useQuery<PortfolioData>({ queryKey: ['portfolio'], queryFn: fetchPortfolio, ...useQueryOptions });
 
   const formatCurrency = (amount?: number) => {
     if (typeof amount !== 'number') return '-';
@@ -57,7 +114,7 @@ export function Dashboard() {
 
   const getTotalPnl = () => {
     if (!portfolio?.portfolio?.positions) return 0;
-    return Object.values(portfolio.portfolio.positions).reduce((sum: number, pos: any) => {
+    return Object.values(portfolio.portfolio.positions).reduce((sum: number, pos: Position) => {
       return sum + (pos.pnl || 0);
     }, 0);
   };

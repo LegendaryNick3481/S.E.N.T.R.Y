@@ -6,8 +6,7 @@ import {
   Settings, 
   Activity,
   Zap,
-  Brain,
-  Database
+  Brain
 } from 'lucide-react';
 import { SystemStatus } from './SystemStatus';
 

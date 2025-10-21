@@ -2,12 +2,17 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
+interface Position {
+  pnl: number;
+  // Add other relevant properties from the position object
+}
+
 interface PortfolioData {
   portfolio_value?: number;
   available_cash?: number;
   exposure?: number;
   timestamp?: string;
-  positions?: Record<string, any>;
+  positions?: Record<string, Position>;
 }
 
 interface PortfolioSummaryProps {
@@ -33,7 +38,7 @@ export function PortfolioSummary({ portfolio, loading }: PortfolioSummaryProps) 
 
   const getTotalPnl = () => {
     if (!portfolio?.positions) return 0;
-    return Object.values(portfolio.positions).reduce((sum: number, pos: any) => {
+    return Object.values(portfolio.positions).reduce((sum: number, pos: Position) => {
       return sum + (pos.pnl || 0);
     }, 0);
   };

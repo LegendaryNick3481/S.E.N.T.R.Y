@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react';
+import { TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface Signal {
   symbol: string;

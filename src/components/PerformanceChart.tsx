@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, TooltipProps } from 'recharts';
+import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface PerformanceChartProps {
   data?: Array<{ timestamp: string; value: number }>;
@@ -8,8 +9,6 @@ interface PerformanceChartProps {
 }
 
 export function PerformanceChart({ data, loading }: PerformanceChartProps) {
-  const chartRef = useRef<HTMLDivElement>(null);
-
   // Mock data for demonstration
   const mockData = [
     { timestamp: '09:00', value: 100000 },
@@ -24,13 +23,13 @@ export function PerformanceChart({ data, loading }: PerformanceChartProps) {
 
   const chartData = data || mockData;
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
     if (active && payload && payload.length) {
       return (
         <div className="glass-card p-3 border border-white/20">
           <p className="text-sm text-gray-400">{`Time: ${label}`}</p>
           <p className="text-sm font-bold text-white">
-            {`Value: ₹${payload[0].value.toLocaleString()}`}
+            {`Value: ₹${(payload[0].value as number).toLocaleString()}`}
           </p>
         </div>
       );
@@ -81,7 +80,7 @@ export function PerformanceChart({ data, loading }: PerformanceChartProps) {
             fontSize={12}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+            tickFormatter={(value) => `₹${(value as number / 1000).toFixed(0)}k`}
           />
           <Tooltip content={<CustomTooltip />} />
           <Area
