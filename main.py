@@ -10,6 +10,9 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import argparse
 import json
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Import all components
 from data.fyers_client import FyersClient
@@ -21,6 +24,15 @@ from trading.live_executor import LiveExecutor
 from backtesting.backtest_engine import BacktestEngine
 from config import Config
 
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, Config.LOG_LEVEL),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(Config.LOG_FILE),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 class MismatchedEnergySystem:
@@ -301,9 +313,6 @@ async def main():
         await system.shutdown()
 
 if __name__ == "__main__":
-    # Import numpy here to avoid issues
-    import numpy as np
-    
     # Run the main function
     asyncio.run(main())
 

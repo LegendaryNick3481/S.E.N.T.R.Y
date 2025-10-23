@@ -16,21 +16,10 @@ class Config:
     # News Sources (Indian Markets)
     NEWS_SOURCES = {
         'rss': [
-            'https://www.moneycontrol.com/rss/business.xml',
-            'https://www.moneycontrol.com/rss/marketnews.xml',
             'https://economictimes.indiatimes.com/markets/rssfeeds/1977029391.cms',
-            'https://www.bseindia.com/rss/feeds/ann.xml',
-            'https://www.nseindia.com/rss/feeds/ann.xml',
-            'https://feeds.finance.yahoo.com/rss/2.0/headline',
             'https://www.investing.com/rss/news.rss'
         ],
-        'twitter_handles': [
-            '@NSEIndia',
-            '@BSEIndia', 
-            '@MoneyControlCom',
-            '@EconomicTimes',
-            '@livemint'
-        ],
+        'twitter_handles': [],
         'reddit': [
             'IndianStockMarket',      # Retail traders, daily sentiment, live market memes
             'IndiaInvestments',       # Long-term investing, mutual funds, company deep-dives

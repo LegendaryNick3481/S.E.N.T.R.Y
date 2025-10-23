@@ -43,6 +43,10 @@ class LiveExecutor:
             logger.info(f"Starting live trading for {len(watchlist)} symbols: {watchlist}")
             await event_bus.publish({"type": "status", "stage": "start", "watchlist": watchlist})
             
+            # Connect to Fyers websocket and subscribe to symbols
+            await self.fyers_client.connect_websocket()
+            await self.fyers_client.subscribe_symbols(watchlist)
+            
             # Start main trading loop
             await self._trading_loop()
             
@@ -344,12 +348,11 @@ class LiveExecutor:
             signals = []
             for symbol in self.watchlist:
                 try:
-                    # Get current price
-                    quotes = await self.fyers_client.get_live_quotes([symbol])
-                    if symbol not in quotes:
+                    # Get current price from websocket
+                    current_price = await self.fyers_client.get_latest_price(symbol)
+                    if current_price is None:
+                        logger.warning(f"No live price data for {symbol} from websocket.")
                         continue
-                    
-                    current_price = quotes[symbol]['v']['lp']
                     
                     # Analyze news
                     symbol_news = news_data.get(symbol, [])

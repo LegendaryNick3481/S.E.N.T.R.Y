@@ -12,12 +12,16 @@ import os
 from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
+from data.fyers_client import FyersClient
+from news.news_scraper import NewsScraper
 import asyncio
 
 logger = logging.getLogger(__name__)
 
 class BacktestEngine:
     def __init__(self):
+        self.fyers_client = FyersClient()
+        self.news_scraper = NewsScraper()
         self.initial_capital = Config.INITIAL_CAPITAL
         self.current_capital = self.initial_capital
         self.positions = {}
@@ -30,18 +34,21 @@ class BacktestEngine:
                                  start_date: str, end_date: str) -> Dict:
         """Load historical price and news data"""
         try:
-            # This would integrate with Fyers API to get historical data
-            # For now, we'll create mock data structure
-            
+            await self.fyers_client.initialize()
+            await self.news_scraper.initialize()
             price_data = {}
             news_data = {}
             
             for symbol in symbols:
-                # Mock price data (in real implementation, fetch from Fyers)
-                price_data[symbol] = self._generate_mock_price_data(symbol, start_date, end_date)
-                
-                # Mock news data (in real implementation, fetch from news sources)
-                news_data[symbol] = self._generate_mock_news_data(symbol, start_date, end_date)
+                price_data[symbol] = await self.fyers_client.get_historical_data(
+                    symbol=symbol,
+                    resolution="D",
+                    date_format="1",
+                    range_from=start_date,
+                    range_to=end_date,
+                    cont_flag="1"
+                )
+                news_data[symbol] = await self.news_scraper.get_recent_news([symbol], hours_back=24*365*2) # 2 years of news
             
             self.price_data = price_data
             self.news_data = news_data
@@ -52,101 +59,9 @@ class BacktestEngine:
         except Exception as e:
             logger.error(f"Error loading historical data: {e}")
             return {}
+
     
-    def _generate_mock_price_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """Generate mock price data for backtesting"""
-        try:
-            # Create date range - use 5-minute intervals for faster backtesting
-            dates = pd.date_range(start=start_date, end=end_date, freq='5min')
-            
-            # Generate mock OHLC data with some randomness
-            np.random.seed(hash(symbol) % 2**32)  # Consistent seed per symbol
-            
-            # Base price
-            base_price = 100 + hash(symbol) % 1000
-            
-            # Generate price series with very conservative trend and volatility
-            returns = np.random.normal(0.00001, 0.001, len(dates))  # Minimal drift, 0.1% volatility
-            
-            # Add minimal momentum and mean reversion
-            for i in range(1, len(returns)):
-                returns[i] += 0.001 * returns[i-1]  # Minimal momentum
-                returns[i] -= 0.0005 * np.sum(returns[:i]) / i  # Minimal mean reversion
-            
-            prices = base_price * np.exp(np.cumsum(returns))
-            
-            # Generate OHLC from prices with realistic volatility
-            data = []
-            for i, (date, price) in enumerate(zip(dates, prices)):
-                # Generate OHLC around the price with minimal volatility
-                volatility = 0.0005  # 0.05% intraday volatility
-                high = price * (1 + np.random.uniform(0, volatility))
-                low = price * (1 - np.random.uniform(0, volatility))
-                open_price = prices[i-1] if i > 0 else price
-                close = price
-                volume = np.random.randint(1000, 10000)
-                
-                data.append({
-                    'timestamp': date,
-                    'open': open_price,
-                    'high': high,
-                    'low': low,
-                    'close': close,
-                    'volume': volume
-                })
-            
-            df = pd.DataFrame(data)
-            df.set_index('timestamp', inplace=True)
-            return df
-            
-        except Exception as e:
-            logger.error(f"Error generating mock price data: {e}")
-            return pd.DataFrame()
-    
-    def _generate_mock_news_data(self, symbol: str, start_date: str, end_date: str) -> List[Dict]:
-        """Generate mock news data for backtesting"""
-        try:
-            news_items = []
-            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-            
-            # Generate news items at random intervals
-            current_date = start_dt
-            while current_date < end_dt:
-                # Random interval between news items (1-7 days)
-                interval = np.random.randint(1, 8)
-                current_date += timedelta(days=interval)
-                
-                if current_date > end_dt:
-                    break
-                
-                # Generate mock news with sentiment
-                sentiment = np.random.choice(['positive', 'negative', 'neutral'], 
-                                          p=[0.3, 0.3, 0.4])
-                
-                if sentiment == 'positive':
-                    title = f"{symbol} shows strong growth prospects"
-                    sentiment_score = np.random.uniform(0.1, 0.8)
-                elif sentiment == 'negative':
-                    title = f"{symbol} faces challenges ahead"
-                    sentiment_score = np.random.uniform(-0.8, -0.1)
-                else:
-                    title = f"{symbol} maintains steady performance"
-                    sentiment_score = np.random.uniform(-0.1, 0.1)
-                
-                news_items.append({
-                    'timestamp': current_date,
-                    'title': title,
-                    'description': f"Market update for {symbol}",
-                    'sentiment_score': sentiment_score,
-                    'source': 'mock_news'
-                })
-            
-            return news_items
-            
-        except Exception as e:
-            logger.error(f"Error generating mock news data: {e}")
-            return []
+
     
     async def run_backtest(self, symbols: List[str], start_date: str, end_date: str,
                           strategy_params: Dict = None) -> Dict:

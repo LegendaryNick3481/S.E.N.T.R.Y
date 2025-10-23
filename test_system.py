@@ -73,6 +73,7 @@ def test_sentiment_analyzer():
         from nlp.sentiment_analyzer import SentimentAnalyzer
         
         analyzer = SentimentAnalyzer()
+        asyncio.run(analyzer.initialize())
         
         # Test sentiment analysis
         test_text = "This is a positive news about the company's growth"

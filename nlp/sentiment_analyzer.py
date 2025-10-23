@@ -28,8 +28,12 @@ class SentimentAnalyzer:
     async def initialize(self):
         """Initialize NLP models"""
         try:
-            # Load sentence transformer model
-            self.sentence_model = SentenceTransformer(Config.SENTENCE_TRANSFORMER_MODEL)
+            # Load sentence transformer model to CPU first
+            self.sentence_model = SentenceTransformer(Config.SENTENCE_TRANSFORMER_MODEL, device='cpu')
+            
+            # If CUDA is available, move the model to GPU
+            if torch.cuda.is_available():
+                self.sentence_model.to('cuda')
             
             # Initialize VADER sentiment analyzer
             self.vader_analyzer = SentimentIntensityAnalyzer()
