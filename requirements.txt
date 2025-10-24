@@ -31,6 +31,7 @@ ta>=0.10.0
 # Configuration and logging
 python-dotenv>=1.0.0
 loguru>=0.7.0
+pytz>=2023.3
 
 # Testing
 pytest>=7.4.0

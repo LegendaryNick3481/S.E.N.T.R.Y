@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 import logging
 import sys
 import os
+import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 from data.fyers_client import FyersClient
@@ -41,17 +42,41 @@ class LiveExecutor:
             self.is_running = True
             
             logger.info(f"Starting live trading for {len(watchlist)} symbols: {watchlist}")
-            await event_bus.publish({"type": "status", "stage": "start", "watchlist": watchlist})
+            await event_bus.publish({
+                "type": "status", 
+                "stage": "start", 
+                "watchlist": watchlist,
+                "message": f"Starting live trading for {len(watchlist)} symbols"
+            })
             
             # Connect to Fyers websocket and subscribe to symbols
-            await self.fyers_client.connect_websocket()
-            await self.fyers_client.subscribe_symbols(watchlist)
+            logger.info("Connecting to websocket...")
+            await event_bus.publish({"type": "log", "level": "INFO", "message": "Connecting to websocket..."})
+            
+            ws_connected = await self.fyers_client.connect_websocket()
+            if not ws_connected:
+                logger.error("Failed to connect to websocket")
+                await event_bus.publish({"type": "error", "message": "Failed to connect to websocket"})
+                return
+            
+            logger.info("Subscribing to symbols...")
+            await event_bus.publish({"type": "log", "level": "INFO", "message": f"Subscribing to {len(watchlist)} symbols..."})
+            
+            subscribed = await self.fyers_client.subscribe_symbols(watchlist)
+            if not subscribed:
+                logger.error("Failed to subscribe to symbols")
+                await event_bus.publish({"type": "error", "message": "Failed to subscribe to symbols"})
+                return
+            
+            logger.info("Setup complete! Starting trading loop...")
+            await event_bus.publish({"type": "log", "level": "SUCCESS", "message": "Setup complete! Trading loop started"})
             
             # Start main trading loop
             await self._trading_loop()
             
         except Exception as e:
             logger.error(f"Error starting trading: {e}")
+            await event_bus.publish({"type": "error", "message": f"Error starting trading: {e}"})
             self.is_running = False
     
     async def stop_trading(self):
@@ -67,15 +92,35 @@ class LiveExecutor:
             logger.error(f"Error stopping trading: {e}")
     
     async def _trading_loop(self):
-        """Main trading loop"""
+        """Main trading loop with smart off-hours handling"""
         try:
             while self.is_running:
                 # Check if market is open
                 if not self._is_market_open():
-                    logger.info("Market is closed, waiting...")
-                    await event_bus.publish({"type": "status", "stage": "market_closed"})
-                    await asyncio.sleep(60)  # Wait 1 minute
+                    # Get time until market opens
+                    wait_seconds = self._seconds_until_market_open()
+                    
+                    logger.info(f"Market is closed. Next check in {wait_seconds//60} minutes")
+                    await event_bus.publish({
+                        "type": "status", 
+                        "stage": "market_closed",
+                        "next_open_seconds": wait_seconds
+                    })
+                    
+                    # Disconnect WebSocket to save resources
+                    if self.fyers_client.websocket_connected:
+                        logger.info("Disconnecting WebSocket during off-hours")
+                        await self.fyers_client.disconnect_websocket()
+                    
+                    # Smart wait: longer during off-hours
+                    await asyncio.sleep(min(wait_seconds, 300))  # Max 5 min check
                     continue
+                
+                # Market is open - ensure WebSocket is connected
+                if not self.fyers_client.websocket_connected:
+                    logger.info("Market opened - reconnecting WebSocket")
+                    await self.fyers_client.connect_websocket()
+                    await self.fyers_client.subscribe_symbols(self.watchlist)
                 
                 # Process trading cycle
                 await self._process_trading_cycle()
@@ -86,6 +131,43 @@ class LiveExecutor:
         except Exception as e:
             logger.error(f"Error in trading loop: {e}")
             self.is_running = False
+    
+    def _seconds_until_market_open(self) -> int:
+        """Calculate seconds until market opens"""
+        try:
+            import pytz
+            
+            ist = pytz.timezone(Config.MARKET_HOURS['timezone'])
+            now_ist = datetime.now(ist)
+            
+            # If weekend, wait until Monday
+            if now_ist.weekday() == 5:  # Saturday
+                days_until_monday = 2
+            elif now_ist.weekday() == 6:  # Sunday
+                days_until_monday = 1
+            else:
+                days_until_monday = 0
+            
+            # Calculate next market open time
+            if days_until_monday > 0:
+                # Next Monday at market open
+                next_open = now_ist + timedelta(days=days_until_monday)
+                next_open = next_open.replace(hour=9, minute=15, second=0, microsecond=0)
+            else:
+                # Check if today's market hasn't opened yet
+                market_open_today = now_ist.replace(hour=9, minute=15, second=0, microsecond=0)
+                if now_ist < market_open_today:
+                    next_open = market_open_today
+                else:
+                    # Tomorrow's market open
+                    next_open = (now_ist + timedelta(days=1)).replace(hour=9, minute=15, second=0, microsecond=0)
+            
+            seconds = int((next_open - now_ist).total_seconds())
+            return max(60, seconds)  # At least 60 seconds
+            
+        except Exception as e:
+            logger.error(f"Error calculating next market open: {e}")
+            return 300  # Default 5 minutes
     
     async def _process_trading_cycle(self):
         """Process one trading cycle"""
@@ -117,11 +199,28 @@ class LiveExecutor:
                     microstructure = await self.fyers_client.get_market_microstructure(symbol)
                     price_features = await self.fyers_client.calculate_price_features(symbol)
                     
+                    # Log price information
+                    current_price = microstructure.get('last_price', 0)
+                    volume = microstructure.get('volume', 0)
+                    logger.info(f"{symbol}: ₹{current_price:.2f} | Change: {price_change:+.2f}% | Volume: {volume:,}")
+                    
                     # Analyze news sentiment
                     symbol_news = news_data.get(symbol, [])
                     analyzed_news = self.sentiment_analyzer.analyze_news_batch(symbol_news)
                     sentiment_summary = self.sentiment_analyzer.calculate_news_sentiment_summary(analyzed_news)
                     await event_bus.publish({"type": "sentiment", "symbol": symbol, "summary": sentiment_summary})
+                    
+                    # Publish individual news items to dashboard
+                    for news_item in analyzed_news[:3]:  # Top 3 news items
+                        await event_bus.publish({
+                            "type": "news_item",
+                            "data": {
+                                "symbol": symbol,
+                                "title": news_item.get('title', 'No title'),
+                                "relevance_score": news_item.get('relevance_score', 0),
+                                "sentiment": news_item.get('sentiment', 0)
+                            }
+                        })
                     
                     # Calculate cross-modal analysis
                     news_embeddings = np.array([item['embedding'] for item in analyzed_news])
@@ -140,6 +239,7 @@ class LiveExecutor:
                     await event_bus.publish({"type": "mismatch", "symbol": symbol, "analysis": mismatch_analysis})
                     
                     if mismatch_analysis['is_mismatched']:
+                        logger.info(f"MISMATCH DETECTED: {symbol} | Discord Score: {mismatch_analysis['discord_score']:.3f} | Confidence: {mismatch_analysis['confidence']:.1%}")
                         candidate_symbols.append({
                             'symbol': symbol,
                             'discord_score': mismatch_analysis['discord_score'],
@@ -188,7 +288,9 @@ class LiveExecutor:
                 symbol = signal['symbol']
                 action = signal['action']
                 quantity = signal['quantity']
+                price = signal.get('price', 0)
                 
+                print(f"📊 SIGNAL: {action.upper()} {quantity} shares of {symbol} @ ₹{price:.2f}")
                 logger.info(f"Executing {action} signal for {symbol}: {quantity} shares")
                 
                 # Place order
@@ -281,16 +383,33 @@ class LiveExecutor:
             logger.error(f"Error closing positions: {e}")
     
     def _is_market_open(self) -> bool:
-        """Check if market is open"""
+        """Check if market is open (with timezone and weekend/holiday support)"""
         try:
-            now = datetime.now()
-            current_time = now.strftime('%H:%M')
+            import pytz
             
-            # Simple market hours check (9:15 AM to 3:30 PM IST)
+            # Get current time in IST
+            ist = pytz.timezone(Config.MARKET_HOURS['timezone'])
+            now_ist = datetime.now(ist)
+            
+            # Check if weekend (Saturday=5, Sunday=6)
+            if now_ist.weekday() in [5, 6]:
+                return False
+            
+            # Check trading hours
+            current_time = now_ist.strftime('%H:%M')
             market_start = Config.MARKET_HOURS['start']
             market_end = Config.MARKET_HOURS['end']
             
-            return market_start <= current_time <= market_end
+            is_open = market_start <= current_time <= market_end
+            
+            if not is_open:
+                # Log next market open time
+                if current_time < market_start:
+                    logger.debug(f"Market opens at {market_start} IST")
+                elif current_time > market_end:
+                    logger.debug(f"Market closed. Opens tomorrow at {market_start} IST")
+            
+            return is_open
             
         except Exception as e:
             logger.error(f"Error checking market hours: {e}")

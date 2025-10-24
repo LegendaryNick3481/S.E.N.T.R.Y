@@ -176,8 +176,12 @@ class MismatchedEnergySystem:
             logger.error(f"Error analyzing symbol {symbol}: {e}")
             return {}
     
-    async def get_market_overview(self) -> Dict:
-        """Get market overview with all symbols"""
+    async def get_market_overview(self, full_analysis=False) -> Dict:
+        """Get market overview with all symbols
+        
+        Args:
+            full_analysis: If True, do full ML/news analysis (slow). If False, just prices (fast)
+        """
         try:
             # Load symbols from tickers
             try:
@@ -187,31 +191,59 @@ class MismatchedEnergySystem:
                 symbols = ['HINDZINC', 'MANKIND', 'INDUSTOWER', 'DEEPINDS', 'FMGOETZE']
             
             overview = {
-                'timestamp': datetime.now(),
+                'timestamp': datetime.now().isoformat(),
                 'symbols': {},
-                'market_summary': {}
+                'market_summary': {},
+                'fyers_connected': self.fyers_client.is_connected,
+                'full_analysis': full_analysis
             }
             
             for symbol in symbols:
                 try:
-                    analysis = await self.analyze_single_symbol(symbol)
-                    overview['symbols'][symbol] = analysis
+                    if full_analysis:
+                        # FULL ANALYSIS: News + ML + Sentiment (slow, for background updates)
+                        analysis = await self.analyze_single_symbol(symbol)
+                        overview['symbols'][symbol] = analysis
+                    else:
+                        # FAST MODE: Just live prices from websocket cache
+                        from data.tickers import get_fyers_symbol
+                        fyers_symbol = get_fyers_symbol(symbol)
+                        price = self.fyers_client.price_data.get(fyers_symbol, 0)
+                        volume = self.fyers_client.volume_data.get(fyers_symbol, 0)
+                        
+                        overview['symbols'][symbol] = {
+                            'symbol': symbol,
+                            'price': float(price) if price else 0,
+                            'volume': int(volume) if volume else 0,
+                            'timestamp': datetime.now().isoformat(),
+                            # Minimal structure for frontend compatibility
+                            'sentiment_summary': {'weighted_sentiment': 0},
+                            'mismatch_analysis': {'discord_score': 0, 'is_mismatched': False},
+                            'microstructure': {'last_price': float(price) if price else 0, 'volume': int(volume) if volume else 0}
+                        }
                 except Exception as e:
-                    logger.error(f"Error analyzing {symbol}: {e}")
+                    logger.error(f"Error getting data for {symbol}: {e}")
                     continue
             
             # Calculate market summary
-            discord_scores = [
-                data.get('mismatch_analysis', {}).get('discord_score', 0)
-                for data in overview['symbols'].values()
-            ]
-            
-            overview['market_summary'] = {
-                'total_symbols': len(overview['symbols']),
-                'avg_discord_score': np.mean(discord_scores) if discord_scores else 0,
-                'max_discord_score': np.max(discord_scores) if discord_scores else 0,
-                'mismatched_symbols': len([s for s in discord_scores if s > 0.3])
-            }
+            if full_analysis:
+                discord_scores = [
+                    data.get('mismatch_analysis', {}).get('discord_score', 0)
+                    for data in overview['symbols'].values()
+                ]
+                overview['market_summary'] = {
+                    'total_symbols': len(overview['symbols']),
+                    'avg_discord_score': float(np.mean(discord_scores)) if discord_scores else 0,
+                    'max_discord_score': float(np.max(discord_scores)) if discord_scores else 0,
+                    'mismatched_symbols': len([s for s in discord_scores if s > 0.3])
+                }
+            else:
+                overview['market_summary'] = {
+                    'total_symbols': len(overview['symbols']),
+                    'avg_discord_score': 0,
+                    'max_discord_score': 0,
+                    'mismatched_symbols': 0
+                }
             
             return overview
             

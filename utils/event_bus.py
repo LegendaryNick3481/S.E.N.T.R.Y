@@ -1,43 +1,28 @@
 """
-Simple async event bus for broadcasting backend events to the web UI via SSE.
+Event bus for broadcasting events to the terminal dashboard.
 """
 import asyncio
-import json
-from typing import AsyncIterator, Dict, Any
+from typing import Dict, Any, Callable
 
 
 class EventBus:
     def __init__(self):
-        self._subscribers = set()
+        self._dashboard_callbacks = []
 
-    def _new_queue(self) -> asyncio.Queue:
-        return asyncio.Queue(maxsize=1000)
+    def register_dashboard_callback(self, callback: Callable):
+        """Register a callback for terminal dashboard updates"""
+        self._dashboard_callbacks.append(callback)
 
     async def publish(self, event: Dict[str, Any]):
-        # Non-blocking put: drop if full to avoid backpressure issues
-        for q in list(self._subscribers):
+        """Publish event to all registered dashboard callbacks"""
+        for callback in self._dashboard_callbacks:
             try:
-                q.put_nowait(event)
-            except asyncio.QueueFull:
-                # Drop oldest and enqueue
-                try:
-                    _ = q.get_nowait()
-                except Exception:
-                    pass
-                try:
-                    q.put_nowait(event)
-                except Exception:
-                    pass
-
-    async def subscribe(self) -> AsyncIterator[str]:
-        q = self._new_queue()
-        self._subscribers.add(q)
-        try:
-            while True:
-                event = await q.get()
-                yield json.dumps(event)
-        finally:
-            self._subscribers.discard(q)
+                if asyncio.iscoroutinefunction(callback):
+                    asyncio.create_task(callback(event))
+                else:
+                    callback(event)
+            except Exception:
+                pass
 
 
 event_bus = EventBus()

@@ -28,6 +28,14 @@ class FyersClient:
         self.previous_close_cache = {}
         self.ws_connected_event = asyncio.Event()
         
+        # Setup websocket message logger to separate file
+        self.ws_logger = logging.getLogger('websocket_feed')
+        self.ws_logger.setLevel(logging.INFO)
+        ws_handler = logging.FileHandler('logs/websocket_feed.log', mode='a')
+        ws_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+        self.ws_logger.addHandler(ws_handler)
+        self.ws_logger.propagate = False  # Don't propagate to root logger
+        
     async def initialize(self):
         """Initialize Fyers API connection"""
         try:
@@ -132,42 +140,146 @@ class FyersClient:
 
     def _on_message(self, message):
         # Process incoming websocket messages
-        print(f"Websocket message received: {message}")
+        # Log to separate websocket feed file only
+        self.ws_logger.info(json.dumps(message) if isinstance(message, dict) else str(message))
         
-        if isinstance(message, dict) and message.get('type') not in ['cn', 'ful', 'litemode']:
-            data = message
-            if data.get('s') == 'ok':
-                # Assuming 'd' contains the list of symbols and their data
-                for symbol_data in data.get('d', []):
-                    symbol = symbol_data.get('symbol')
-                    ltp = symbol_data.get('v', {}).get('lp')
-                    if symbol and ltp is not None:
-                        self.price_data[symbol] = ltp
-                        logger.debug(f"Live price update for {symbol}: {ltp}")
+        # Skip connection/config messages
+        if isinstance(message, dict):
+            msg_type = message.get('type')
+            if msg_type in ['cn', 'ful', 'litemode', 'sf']:
+                return
+        
+        # Process market data messages - Exact format from StockBot.py
+        if isinstance(message, dict):
+            symbol = message.get('symbol')
+            
+            if not symbol:
+                # Unknown message format - only log to file
+                if message.get('type') not in ['cn', 'ful', 'litemode', 'sf']:
+                    logger.debug(f"Message without symbol: {json.dumps(message)[:200]}")
+                return
+            
+            # Extract price data - exact field names from StockBot.py
+            ltp = message.get('ltp')  # Last traded price
+            
+            if ltp is None:
+                logger.debug(f"Message for {symbol} without ltp: {json.dumps(message)[:200]}")
+                return
+            
+            # Store the price
+            self.price_data[symbol] = ltp
+            
+            # Extract additional fields available in Fyers messages
+            volume = message.get('volume', 0)
+            low_price = message.get('low_price', 0)
+            high_price = message.get('high_price', 0)
+            open_price = message.get('open_price', 0)
+            prev_close = message.get('prev_close_price', 0)
+            last_traded_time = message.get('last_traded_time') or message.get('exch_feed_time')
+            
+            # Store volume data
+            if volume:
+                self.volume_data[symbol] = volume
+            
+            # Calculate change %
+            if prev_close and prev_close > 0:
+                change_pct = ((ltp - prev_close) / prev_close) * 100
             else:
-                logger.warning(f"Websocket message error: {data}")
+                change_pct = 0
+            
+            # Format timestamp if available
+            time_str = ""
+            if last_traded_time:
+                try:
+                    if isinstance(last_traded_time, str):
+                        last_traded_time = float(last_traded_time)
+                    dt = datetime.fromtimestamp(last_traded_time)
+                    time_str = dt.strftime('%H:%M:%S')
+                except:
+                    pass
+            
+            # Publish price update to event bus for dashboard
+            try:
+                from utils.event_bus import event_bus
+                asyncio.create_task(event_bus.publish({
+                    "type": "price_update",
+                    "symbol": symbol.replace('NSE:', '').replace('-EQ', ''),
+                    "price": ltp,
+                    "change": change_pct,
+                    "volume": volume,
+                    "high": high_price,
+                    "low": low_price,
+                    "time": time_str
+                }))
+            except:
+                pass
+            
+            logger.debug(f"Live price update for {symbol}: {ltp}")
 
     def _on_open(self):
         logger.info("Fyers websocket connection opened.")
+        self.ws_logger.info("=== WEBSOCKET CONNECTED ===")
         self.websocket_connected = True
         self.ws_connected_event.set()
+        
+        # Publish websocket status to event bus
+        try:
+            from utils.event_bus import event_bus
+            asyncio.create_task(event_bus.publish({
+                "type": "websocket_status",
+                "connected": True
+            }))
+            asyncio.create_task(event_bus.publish({
+                "type": "log",
+                "level": "SUCCESS",
+                "message": "Websocket connected"
+            }))
+        except:
+            pass
 
     def _on_close(self):
         logger.info("Fyers websocket connection closed.")
+        self.ws_logger.info("=== WEBSOCKET CLOSED ===")
         self.websocket_connected = False
         self.ws_connected_event.clear()
+        
+        # Publish websocket status to event bus
+        try:
+            from utils.event_bus import event_bus
+            asyncio.create_task(event_bus.publish({
+                "type": "websocket_status",
+                "connected": False
+            }))
+            asyncio.create_task(event_bus.publish({
+                "type": "log",
+                "level": "WARNING",
+                "message": "Websocket disconnected"
+            }))
+        except:
+            pass
 
     def _on_error(self, message):
         logger.error(f"Fyers websocket error: {message}")
+        self.ws_logger.error(f"ERROR: {message}")
 
     async def connect_websocket(self):
         if not self.data_ws:
+            logger.info("Websocket not initialized, initializing now...")
             await self.initialize()
         if self.data_ws and not self.websocket_connected:
+            logger.info("Connecting to Fyers websocket...")
             self.data_ws.connect()
-            logger.info("Attempting to connect to Fyers websocket...")
-            await self.ws_connected_event.wait()
-            logger.info("Fyers websocket connected.")
+            
+            # Wait for connection with timeout
+            try:
+                await asyncio.wait_for(self.ws_connected_event.wait(), timeout=10)
+                logger.info("Fyers websocket connected.")
+                return True
+            except asyncio.TimeoutError:
+                logger.error("Websocket connection timeout")
+                return False
+        elif self.websocket_connected:
+            logger.info("Websocket already connected")
             return True
         return False
 
@@ -180,12 +292,25 @@ class FyersClient:
         from data.tickers import get_fyers_symbol
         fyers_symbols = [get_fyers_symbol(symbol) for symbol in symbols]
 
-        # Fyers websocket subscription format
-        data_type = "symbolData"  # For live market data
-        self.data_ws.subscribe(symbols=fyers_symbols, data_type=data_type)
-        self.subscribed_symbols.update(fyers_symbols)
-        logger.info(f"Subscribed to Fyers live data for symbols: {fyers_symbols}")
-        return True
+        logger.info(f"Subscribing to {len(fyers_symbols)} symbols (first 3: {fyers_symbols[:3]})")
+        
+        # Fyers websocket subscription format - use 'SymbolUpdate' for live data
+        data_type = "SymbolUpdate"  # Correct data type for live market data
+        
+        try:
+            self.data_ws.subscribe(symbols=fyers_symbols, data_type=data_type)
+            self.subscribed_symbols.update(fyers_symbols)
+            
+            logger.info(f"Subscribed to {len(fyers_symbols)} symbols")
+            self.ws_logger.info(f"SUBSCRIBED: {fyers_symbols}")
+            
+            # Give it a moment for data to start flowing
+            await asyncio.sleep(2)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error subscribing to symbols: {e}")
+            return False
 
     async def get_latest_price(self, symbol: str) -> Optional[float]:
         return self.price_data.get(symbol)

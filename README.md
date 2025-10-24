@@ -76,21 +76,33 @@ FYERS_ACCESS_TOKEN=your_access_token_here
 
 ### 3. Usage Examples
 
-#### Backtesting
+#### Terminal Dashboard (Recommended)
 ```bash
-# Run backtest for specific symbols
+# Live trading with fancy animated terminal dashboard
+python run_clean.py --mode live
+
+# Test dashboard with simulated data
+python test_dashboard.py
+```
+
+#### News Monitoring
+```bash
+# View all news from all sources
+python news_monitor.py --mode all --hours 24
+
+# Monitor specific symbols continuously (auto-refresh every 5 min)
+python news_monitor.py --symbols RELIANCE TCS INFY --continuous --refresh 5
+```
+
+#### Command Line Mode
+```bash
+# Backtesting
 python main.py --mode backtest --symbols RELIANCE TCS INFY --start-date 2023-01-01 --end-date 2024-01-01
-```
 
-#### Live Trading
-```bash
-# Start live trading with watchlist
-python main.py --mode live --watchlist RELIANCE TCS INFY HDFC ICICIBANK
-```
+# Live trading (console logs)
+python main.py --mode live --watchlist RELIANCE TCS INFY
 
-#### Single Symbol Analysis
-```bash
-# Analyze specific symbols for mismatched energy
+# Single symbol analysis
 python main.py --mode analyze --symbols RELIANCE TCS
 ```
 

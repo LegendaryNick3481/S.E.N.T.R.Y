@@ -56,8 +56,14 @@ class NewsScraper:
 
     async def initialize(self):
         """Initialize async session and ML models"""
+        # Don't reinitialize if already initialized
+        if self.session is not None and not self.session.closed:
+            logger.debug("Session already initialized, skipping...")
+            return
+        
         timeout = aiohttp.ClientTimeout(total=30, connect=10)
-        self.session = aiohttp.ClientSession(timeout=timeout)
+        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, force_close=True)
+        self.session = aiohttp.ClientSession(timeout=timeout, connector=connector)
 
         # Initialize ML model for relevance scoring
         try:
@@ -126,8 +132,11 @@ class NewsScraper:
 
     async def close(self):
         """Close async session"""
-        if self.session:
+        if self.session and not self.session.closed:
             await self.session.close()
+            # Wait a bit for underlying connections to close
+            await asyncio.sleep(0.250)
+            self.session = None
 
     def _load_symbol_patterns(self) -> Dict[str, List[str]]:
         """Load symbol patterns for fallback filtering"""
@@ -156,6 +165,11 @@ class NewsScraper:
 
     async def scrape_rss_feeds(self, feed_names: List[str] = None) -> List[Dict]:
         """Scrape RSS feeds with retry logic and error handling"""
+        # Ensure session is initialized and not closed
+        if self.session is None or self.session.closed:
+            logger.warning("Session not initialized or closed, initializing now...")
+            await self.initialize()
+        
         news_items = []
 
         feeds_to_scrape = feed_names or list(self.VALID_RSS_FEEDS.keys())
@@ -173,6 +187,11 @@ class NewsScraper:
                 retries = 3
                 for attempt in range(retries):
                     try:
+                        # Check session again before use
+                        if self.session is None or self.session.closed:
+                            logger.warning("Session closed during scraping, reinitializing...")
+                            await self.initialize()
+                        
                         headers = {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                         }
@@ -237,6 +256,11 @@ class NewsScraper:
 
     async def scrape_reddit_news(self, hours_back: int = 24) -> List[Dict]:
         """Scrape Reddit using JSON API (no authentication required)"""
+        # Ensure session is initialized
+        if self.session is None:
+            logger.warning("Session not initialized, initializing now...")
+            await self.initialize()
+        
         news_items = []
 
         for subreddit in self.REDDIT_SUBREDDITS:
@@ -302,10 +326,20 @@ class NewsScraper:
 
     async def scrape_google_news(self, symbol: str, hours_back: int = 24) -> List[Dict]:
         """Scrape Google News RSS for specific symbol"""
+        # Ensure session is initialized and not closed
+        if self.session is None or self.session.closed:
+            logger.warning("Session not initialized or closed, initializing now...")
+            await self.initialize()
+        
         news_items = []
 
         try:
             await self._rate_limit_wait(f'google_news_{symbol}')
+
+            # Check session before use
+            if self.session is None or self.session.closed:
+                logger.warning("Session closed during Google News scraping, reinitializing...")
+                await self.initialize()
 
             # Construct query with symbol and company name variations
             query_terms = [symbol]
